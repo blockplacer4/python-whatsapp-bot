@@ -11,23 +11,15 @@ OPENAI_ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-def upload_file(path):
-    # Upload a file with an "assistants" purpose
-    file = client.files.create(
-        file=open("../../data/airbnb-faq.pdf", "rb"), purpose="assistants"
-    )
-
 
 def create_assistant(file):
     """
     You currently cannot set the temperature for Assistant via the API.
     """
     assistant = client.beta.assistants.create(
-        name="WhatsApp AirBnb Assistant",
-        instructions="You're a helpful WhatsApp assistant that can assist guests that are staying in our Paris AirBnb. Use your knowledge base to best respond to customer queries. If you don't know the answer, say simply that you cannot help with question and advice to contact the host directly. Be friendly and funny.",
-        tools=[{"type": "retrieval"}],
-        model="gpt-4-1106-preview",
-        file_ids=[file.id],
+        name="WhatsApp Personal Assistant",
+        instructions="Du bist ein hilfsbereiter WhatsApp-Assistent, der mir im Alltag helfen soll. Nutze deine Wissensbasis, um Fragen bestmöglich zu beantworten. Wenn du die Antwort nicht weißt, sag einfach, dass du bei der Frage nicht helfen kannst. Sei freundlich und witzig.",
+        model="gpt-4o-mini",
     )
     return assistant
 
@@ -85,7 +77,7 @@ def generate_response(message_body, wa_id, name):
         thread = client.beta.threads.retrieve(thread_id)
 
     # Add message to thread
-    message = client.beta.threads.messages.create(
+    client.beta.threads.messages.create(
         thread_id=thread_id,
         role="user",
         content=message_body,
