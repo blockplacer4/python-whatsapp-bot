@@ -1,7 +1,10 @@
+import os
+from dotenv import load_dotenv
 from notion_client import Client
 from flask import current_app, jsonify
 
-notion = Client(auth=current_app.config['NOTION_TOKEN'])
+load_dotenv()
+notion = Client(auth=os.getenv('NOTION_TOKEN'))
 
 def get_all_pages(database_id):
     """
@@ -82,5 +85,3 @@ def create_page(database_id, properties):
     except Exception as e:
         print(f"Fehler beim Erstellen der Seite: {e}")
         return None
-
-print(get_all_pages("13586c44936d80078ae6eae78d36f53d"))

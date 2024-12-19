@@ -14,4 +14,3 @@ Aktuelle Uhrzeit - {current_time}
 Aktuelle Aufgaben von Notion:
 
     {notion_aufgaben}
-   

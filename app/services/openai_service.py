@@ -25,18 +25,13 @@ def store_thread(wa_id, thread_id):
 
 
 def run_assistant(thread, name):
-    # Retrieve the Assistant
     assistant = client.beta.assistants.retrieve(OPENAI_ASSISTANT_ID)
 
-    # Run the assistant
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,
-        # instructions=f"You are having a conversation with {name}",
     )
 
-    # Wait for completion
-    # https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps#:~:text=under%20failed_at.-,Polling%20for%20updates,-In%20order%20to
     while run.status != "completed":
         # Be nice to the API
         time.sleep(0.5)
@@ -66,7 +61,6 @@ def generate_response(message_body, wa_id, name):
         thread = client.beta.threads.retrieve(thread_id)
 
     # Get notion data
-
     notion_data = notion_utils.get_all_pages("13586c44936d80078ae6eae78d36f53d")
 
     # Add message to thread
