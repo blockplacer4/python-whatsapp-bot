@@ -1,0 +1,17 @@
+Hey Coco, hier eine neue Nachricht von dem User, bitte antworte diese:
+
+```
+{wa_message}
+```
+
+---
+
+###Aktuelle Daten:
+
+Aktuelles Datum - {current_date}
+Aktuelle Uhrzeit - {current_time}
+
+Aktuelle Aufgaben von Notion:
+
+    {notion_aufgaben}
+   

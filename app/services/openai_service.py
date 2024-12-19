@@ -1,6 +1,8 @@
 from openai import OpenAI
 import shelve
 from dotenv import load_dotenv
+from app.utils.prompts import prompt
+from app.utils import notion_utils
 import os
 import time
 import logging
@@ -9,19 +11,6 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-
-
-def create_assistant(file):
-    """
-    You currently cannot set the temperature for Assistant via the API.
-    """
-    assistant = client.beta.assistants.create(
-        name="WhatsApp Personal Assistant",
-        instructions="Du bist ein hilfsbereiter WhatsApp-Assistent, der mir im Alltag helfen soll. Nutze deine Wissensbasis, um Fragen bestmöglich zu beantworten. Wenn du die Antwort nicht weißt, sag einfach, dass du bei der Frage nicht helfen kannst. Sei freundlich und witzig.",
-        model="gpt-4o-mini",
-    )
-    return assistant
 
 
 # Use context manager to ensure the shelf file is closed properly
@@ -76,11 +65,15 @@ def generate_response(message_body, wa_id, name):
         logging.info(f"Retrieving existing thread for {name} with wa_id {wa_id}")
         thread = client.beta.threads.retrieve(thread_id)
 
+    # Get notion data
+
+    notion_data = notion_utils.get_all_pages("13586c44936d80078ae6eae78d36f53d")
+
     # Add message to thread
     client.beta.threads.messages.create(
         thread_id=thread_id,
         role="user",
-        content=message_body,
+        content=prompt.get_prompt(notion_data, message_body),
     )
 
     # Run the assistant and get the new message
