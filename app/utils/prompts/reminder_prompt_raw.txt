@@ -1,0 +1,12 @@
+Hey Coco, ein Reminder/Erinnerung wurde gerade ausgelöst, kannst du bitte Janosch darüber informieren? Deine Anwort hierdrauf wird direkt an Janosch gesendet.
+
+Hier die Daten zum Reminder
+
+{reminder_data}
+
+---
+
+###Aktuelle Daten:
+
+Aktuelles Datum - {current_date}
+Aktuelle Uhrzeit - {current_time}

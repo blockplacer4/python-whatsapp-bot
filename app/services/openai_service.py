@@ -1,11 +1,12 @@
 from openai import OpenAI
 import shelve
 from dotenv import load_dotenv
-from app.utils.prompts import prompt
-from app.utils import notion_utils
+from app.utils.prompts import prompt, reminder_prompt
+from app.utils import notion_utils, reminder_utils
 import os
 import time
 import logging
+import json
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -32,45 +33,84 @@ def run_assistant(thread, name):
         assistant_id=assistant.id,
     )
 
+    retry_count = 0
+    max_retries = 5
+
     while run.status != "completed":
-        # Be nice to the API
+        if retry_count >= max_retries:
+            logging.error("Maximum retries reached. Ending run.")
+            client.beta.threads.messages.create(
+                thread_id=thread.id,
+                role="assistant",
+                content="Sorry Cheff, mein Backend funktioniert gerade nicht."
+            )
+            break
+
         time.sleep(0.5)
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
 
-    # Retrieve the Messages
+        if run.status == "requires_action":
+            tool_outputs = []
+
+            for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+                function_name = tool_call.function.name
+                function_arguments = json.loads(tool_call.function.arguments)
+
+                try:
+                    result = reminder_utils.execute_function(function_name, **function_arguments)
+                    if not isinstance(result, str):
+                        result = json.dumps(result)
+                except ValueError as e:
+                    logging.warning(str(e))
+                    result = json.dumps({"error": str(e)})
+
+                tool_outputs.append({
+                    "tool_call_id": tool_call.id,
+                    "output": result
+                })
+
+            if tool_outputs:
+                try:
+                    run = client.beta.threads.runs.submit_tool_outputs_and_poll(
+                        thread_id=thread.id,
+                        run_id=run.id,
+                        tool_outputs=tool_outputs
+                    )
+                    logging.info("Tool outputs submitted successfully.")
+                except Exception as e:
+                    logging.error(f"Failed to submit tool outputs: {e}")
+                    retry_count += 1
+            else:
+                logging.info("No tool outputs to submit.")
+
     messages = client.beta.threads.messages.list(thread_id=thread.id)
-    new_message = messages.data[0].content[0].text.value
+    new_message = messages.data[0].content[0].text.value if messages.data else ""
     logging.info(f"Generated message: {new_message}")
     return new_message
 
 
-def generate_response(message_body, wa_id, name):
-    # Check if there is already a thread_id for the wa_id
+def generate_response(message_body, wa_id, name, which_prompt='userprompt'):
     thread_id = check_if_thread_exists(wa_id)
 
-    # If a thread doesn't exist, create one and store it
     if thread_id is None:
         logging.info(f"Creating new thread for {name} with wa_id {wa_id}")
         thread = client.beta.threads.create()
         store_thread(wa_id, thread.id)
         thread_id = thread.id
-
-    # Otherwise, retrieve the existing thread
     else:
         logging.info(f"Retrieving existing thread for {name} with wa_id {wa_id}")
         thread = client.beta.threads.retrieve(thread_id)
 
-    # Get notion data
     notion_data = notion_utils.get_all_pages("13586c44936d80078ae6eae78d36f53d")
+    # make a list with "which prompt" and then get it from this yk | Hier Zukunft Janosch, zu Aufwendig
+    content_prompt = prompt.get_prompt(notion_data, message_body) if which_prompt == 'userprompt' else reminder_prompt.get_prompt(message_body)
 
-    # Add message to thread
     client.beta.threads.messages.create(
         thread_id=thread_id,
         role="user",
-        content=prompt.get_prompt(notion_data, message_body),
+        content=content_prompt,
     )
 
-    # Run the assistant and get the new message
     new_message = run_assistant(thread, name)
 
     return new_message

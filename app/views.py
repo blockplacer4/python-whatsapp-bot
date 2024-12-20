@@ -5,9 +5,13 @@ from flask import Blueprint, request, jsonify, current_app
 
 from .decorators.security import signature_required
 from .utils.whatsapp_utils import (
+    send_message,
     process_whatsapp_message,
     is_valid_whatsapp_message,
+    process_text_for_whatsapp,
+    get_text_message_input,
 )
+from .services.openai_service import generate_response
 
 webhook_blueprint = Blueprint("webhook", __name__)
 
@@ -53,6 +57,33 @@ def handle_message():
         logging.error("Failed to decode JSON")
         return jsonify({"status": "error", "message": "Invalid JSON provided"}), 400
 
+def handle_reminder():
+    body = request.get_json()
+    logging.info(f"Reminder - request body: {body}")
+
+    # Extracting relevant data
+    reminders = body.get("reminders_notified", [])
+    formatted_reminders = [
+        {
+            "title": reminder.get("title"),
+            "notes": reminder.get("notes"),
+            "time_tz": reminder.get("time_tz"),
+            "created_at": reminder.get("created_at")
+        }
+        for reminder in reminders
+    ]
+
+    # Man das hier ist scheiße, ich weiß X.x
+    wa_id = '4917645298758'
+    name = 'Janosch'
+    response = generate_response(str(formatted_reminders), wa_id, name, which_prompt="reminder_prompt")
+
+    response = process_text_for_whatsapp(response)
+
+    data = get_text_message_input(current_app.config["RECIPIENT_WAID"], response)
+    send_message(data)
+
+    return jsonify({"status": "ok"}), 200
 
 # Required webhook verifictaion for WhatsApp
 def verify():
@@ -85,5 +116,11 @@ def webhook_get():
 @signature_required
 def webhook_post():
     return handle_message()
+
+@webhook_blueprint.route("/reminders", methods=["POST"])
+def reminders_post():
+    return handle_reminder()
+
+
 
 

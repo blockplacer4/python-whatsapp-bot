@@ -2,6 +2,7 @@ import os
 import requests
 import json
 
+from inspect import signature
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,23 +16,25 @@ HEADERS = {
     'Content-Type': 'application/json'
 }
 
-def create_reminder(title, reminder_date, reminder_time, rrule=None):
+def create_reminder(title, reminder_date, reminder_time):
     """
     Erstellt eine einmalige Erinnerung.
 
     :param title: Title der Erinnerung
     :param reminder_date: Datum der Erinnerung im Format 'YYYY-MM-DD'
-    :param reminder_time: Uhrzeit der Erinnerung im Format 'HH:MM:SS'
-    :param rrule: Recursion rule | Example: Every 2 years, in July and December on the last Thursday: FREQ=YEARLY;INTERVAL=2;BYMONTH=7,12;BYDAY=-1TH | Example 2: Every 2 weeks, on Monday, Wednesday, and Friday: FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR
+    :param reminder_time: Uhrzeit der Erinnerung im Format 'HH:MM'
     :return: Antwort der API als JSON
     """
     data = {
         'title': title,
+        'timezone': 'Europe/Berlin',
         'date_tz': reminder_date,
         'time_tz': reminder_time,
-        'rrule': rrule
     }
     response = requests.post(f'{BASE_URL}/applications/{APPLICATION_ID}/reminders', headers=HEADERS, data=json.dumps(data))
+    print()
+    print(response.text)
+    print()
     return response.json()
 
 def update_reminder(reminder_id, reminder_date, reminder_time):
@@ -68,6 +71,7 @@ def get_reminders():
     :return: Liste der Erinnerungen als JSON
     """
     response = requests.get(f'{BASE_URL}/reminders', headers=HEADERS)
+    print(response)
     return response.json()
 
 def get_one_reminder(reminder_id):
@@ -78,4 +82,23 @@ def get_one_reminder(reminder_id):
     """
     response = requests.get(f'{BASE_URL}/reminders/{reminder_id}', headers=HEADERS)
     return response.json()
+
+def execute_function(function_name, **kwargs):
+    print("Funktion called from reminder: " + function_name)
+    print("Args gave within reminders: " + str(kwargs))
+    functions = {
+        'create_reminder': create_reminder,
+        'update_reminder': update_reminder,
+        'delete_reminder': delete_reminder,
+        'get_reminders': get_reminders,
+        'get_one_reminder': get_one_reminder
+    }
+    if function_name in functions:
+        func = functions[function_name]
+        func_params = signature(func).parameters
+        filtered_kwargs = {key: kwargs[key] for key in func_params if key in kwargs}
+        return func(**filtered_kwargs)
+    else:
+        raise ValueError(f"Function '{function_name}' not found.")
+
 
